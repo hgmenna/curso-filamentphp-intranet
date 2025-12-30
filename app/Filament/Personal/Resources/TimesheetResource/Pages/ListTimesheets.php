@@ -7,6 +7,7 @@ use App\Models\Timesheet;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,7 +19,26 @@ class ListTimesheets extends ListRecords
     {
         $lastTimesheet = Timesheet::where('user_id', Auth::user()->id)->orderBy('id', 'desc')->first();
 
-
+        if($lastTimesheet == null) {
+            return [
+            Action::make('inWork')
+                ->label('Entrar a Trabajar')
+                ->color('success')
+                ->visible(!$lastTimesheet->day_out == null)
+                ->disabled($lastTimesheet->day_out == null)
+                ->requiresConfirmation()
+                ->action(function() {
+                    $user = Auth::user();
+                    $timesheet = new Timesheet();
+                    $timesheet->calendar_id = 1;
+                    $timesheet->user_id = Auth::user()->id;
+                    $timesheet->day_in = Carbon::now();
+                    $timesheet->type = 'work';
+                    $timesheet->save();
+                }),
+                Actions\CreateAction::make()
+            ];
+        }
         return [
             Action::make('inWork')
                 ->label('Entrar a Trabajar')
@@ -44,6 +64,11 @@ class ListTimesheets extends ListRecords
                 ->action(function() use($lastTimesheet) {
                     $lastTimesheet->day_out = Carbon::now();
                     $lastTimesheet->save();
+
+                    Notification::make()
+                        ->title('Has entrado a trabajar')
+                        ->success()
+                        ->send();
                 }),
             Action::make('inPause')
                 ->label('Comenzar pausa')
@@ -60,6 +85,11 @@ class ListTimesheets extends ListRecords
                     $timesheet->day_in = Carbon::now();
                     $timesheet->type = 'pause';
                     $timesheet->save();
+
+                    Notification::make()
+                        ->title('Has entrado a trabajar')
+                        ->success()
+                        ->send();
                 }),
             Action::make('stopPause')
                 ->label('Parar Pausa')
